@@ -4,7 +4,9 @@ from openpyxl import load_workbook
 import lark_oapi as lark
 from lark_oapi.api.bitable.v1 import *
 from lark_oapi.api.drive.v1 import *
-
+import datetime
+import sys
+import os
 
 # 多维表格
 app_token = "LTDBbgA6Ba5lKDs1pdPcKEpYnoe"
@@ -16,10 +18,38 @@ field_names = ["团队名称", "说明文档", "点赞人数"]
 # 云文档
 file_token = "XWPhwqHkRi8ozakxRb6cz0SknLd"
 file_type = "wiki"
-user_access_token = "u-eF5LBteut1097g62WlRbeWhl2rhM10vHN8000l282bDS"
+user_access_token = "u-eA5rSGhvB9EHGI7TbaUzmShl0phg10v3j8001h682eTy"
+
 # 定义文档类型变量
 valid_document_types = {"sheet", "mindnote", "bitable", "wiki", "file", "docx"}
 total_records = 0  # 全局总请求计数
+
+# 记录程序运行的日志
+class Logger(object):
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)  # 打印到终端
+        self.log.write(message)        # 写入日志文件
+
+    def flush(self):
+        pass  # 可以不实现
+
+    def close(self):
+        self.log.close()  # 关闭日志文件
+
+# 创建 log 文件夹（如果不存在）
+log_dir = "log"
+os.makedirs(log_dir, exist_ok=True)
+
+# 设置日志文件名
+log_filename = os.path.join(log_dir, f"program_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+sys.stdout = Logger(log_filename)  # 重定向输出
+
+def get_timestamp():
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 def create_client_and_request(app_token, table_id, user_id_type, view_id, field_names):
     client = lark.Client.builder() \
@@ -52,7 +82,7 @@ def main():
 
     # 处理失败返回
     if not response.success():
-        print("bitable.v1.app_table_record.search failed, code: %s, msg: %s, log_id: %s")
+        print(f"[{get_timestamp()}] bitable.v1.app_table_record.search failed, code: %s, msg: %s, log_id: %s")
         lark.logger.error(
             f"client.bitable.v1.app_table_record.search failed, code: {response.code}, msg: {response.msg}, "
             f"log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}"
@@ -88,7 +118,7 @@ def main():
         else:
             like_count = get_file_statistics(file_token, document_type, user_access_token)
 
-        print(f"team_name: {team_name}, file_token: {file_token}, document_type: {document_type}, like_count: {like_count}")
+        print(f"[{get_timestamp()}] team_name: {team_name}, file_token: {file_token}, document_type: {document_type}, like_count: {like_count}")
         total_records += 1  # 请求计数增加
         record = {
             "团队名称": team_name,
@@ -162,5 +192,11 @@ def get_file_statistics(file_token: str, file_type: str, user_access_token: str)
     return like_count
 
 if __name__ == "__main__":
+    print(f"[{get_timestamp()}] Starting...")
+    
     main()
-    print("total_records: ", total_records)
+    print(f"[{get_timestamp()}] total_records: ", total_records)
+
+    print(f"[{get_timestamp()}] Finished!")
+
+    sys.stdout.close()  # 关闭自定义输出
